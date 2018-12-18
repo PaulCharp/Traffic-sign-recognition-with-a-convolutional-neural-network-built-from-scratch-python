@@ -65,3 +65,6 @@ I intend to run different training so as to figure out which is the better learn
 
 ## Training
 I've run several trainings both for the LeCun's structure and the VGG (for now none of the two gives a satisfying answer). My networks processed 50 000 images in 18 hours. The testing part took 7 hours. Results are for now disappointing (my algorithm would have given better results by guessing randomly --'). I tried both by picking each picture randomly or a picture (randomly) in each class while running the training session. By picking each picture randomly we are adding the probabilies of presence in our network, but we risk that our algorithm only learn to answer a single value (associated with the most common sign). It's the opposite while browsing each class and picking randomly a picture in these.
+
+## Note
+-Comments in french are just personnal comments for my not to get lost in my programming progress. They aren't important to understand the code. Please don't bother with these. 
