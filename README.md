@@ -1,7 +1,7 @@
 # Traffic-sign-recognition-with-a-convolutional-neural-network-built-from-scratch-python
 Here we are trying to build a convolutional neural network from scratch without using any preprogrammed machine learning libraries. Our dataset is the German traffic sign dataset GTSRB.
 
-Files follow the following structures (I couldn't upload the dataset they were too big)
+Files follow the following structures (I couldn't upload the datasets they were too big)
 
 -> Main File
 
