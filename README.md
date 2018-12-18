@@ -31,6 +31,11 @@ we don't have to reprocess them each time we want to run a test. During the Prep
 the algorithm's discrimination). Then our training set is too little. We can expand it by applying some transformations. For example 
 prohibited direction are 180° invariant. Then we rotate the picture and we created a new ones !!!! Some pictures, flipped represent 
 a new sign. For example, a sign turn right, flipped become a sign turn left !!! In the end every picture is (32 * 32) sized.
+Here's an example of a process picture : 
+
+<p align="center">
+  <img src="Example of preprocessed picture.png" alt="Example of preprocessed picture"/>
+</p>
 
 ## Structures
 I've tested two different structure for now. None of these work for now.... :'(. But I'm keep working on it (Y). 
