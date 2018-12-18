@@ -28,7 +28,7 @@ we don't have to reprocess them each time we want to run a test. During the Prep
 (others have found better results by doing this) and we apply histogram Equalization (by spreading values on a bigger range we improve
 the algorithm's discrimination). Then our training set is too little. We can expand it by applying some transformations. For example 
 prohibited direction are 180° invariant. Then we rotate the picture and we created a new ones !!!! Some pictures, flipped represent 
-a new sign. For example, a sign turn right, flipped become a sign turn left !!! In the end every picture is (32 * 32) sized. Here's an example of a process picture : 
+a new sign. For example, a sign turn right, flipped become a sign turn left !!! In the end every picture is (32 * 32) sized. Here's an example of a processed picture : 
 
 <p align="center">
   <img src="Example of preprocessed picture.png" alt="Example of preprocessed picture"/>
