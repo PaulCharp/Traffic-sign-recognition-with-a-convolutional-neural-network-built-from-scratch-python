@@ -11,8 +11,12 @@ Created on Sun Aug 26 11:48:09 2018
 # dEdb -> derivative of the cost function with respect of the biais
 # dEdw -> derivative of the cost function with respect of the weights
 # dHdU -> derivative of the outputs with respect of (the outputs just before being passed in ReLU)
-#Note that the terms "inputs" and "outputs" are relative to a layer. For example : 
+#Note that the terms "inputs" and "outputs" are relative to a layer. For example :
 #for a hidden layer output mean the result it process, not the result of the whole network
+
+
+
+######NOTE backpropagate Gradient avant de changer les poids conv################
 
 import numpy as np
 import sys
@@ -42,7 +46,7 @@ def sigmoid(m): # With numpy, exp can be applied to matrix, This is awesome !!!
     return 1 / (1 + np.exp(-m))
 
 class FCLayer(): #Note that ReLU layer is included in FCLayer
-    
+
     def __init__(self,nb_inputs,nb_nodes,a_fun, is_inputLayer = False, lr = LR) :
         self.nb_inputs = nb_inputs
         self.nb_nodes = nb_nodes
@@ -55,54 +59,61 @@ class FCLayer(): #Note that ReLU layer is included in FCLayer
             self.b = None
         self.lr = lr
         self.out = np.zeros(nb_nodes)
-        
+
     def a_function (self,m):  #Activation function
         if self.a_fun == 'sigmoid' :
             return sigmoid(m)
-        if self.a_fun == 'id' :
+        elif self.a_fun == 'id' :
             return m
-        if self.a_fun == 'pixel_normalisation':
+        elif self.a_fun == 'pixel_normalisation':
             return (m/255)
         sys.exit(str(m), 'isn\'t known as an activation function')
-        
-    def delta_b_w(self, dEdH, outputs, inputs):
+
+    def delta_b_w(self, dEdH, outputs, inputs): #We adjust the weigths and backpropagate dEdH for the previous layers
         if self.a_fun == 'sigmoid':
-            self.dEdb =  - np.multiply(dEdH, np.multiply(outputs, (1-outputs)))
+            self.dEdb = dEdH
             self.b -= self.lr * self.dEdb
             self.w -= self.lr * self.dEdb * (inputs.transpose())
         else :
             sys.exit('[-] Why calculating an error on an non defined a_function ?')
-    
+
     def guess(self, inputs):
         if not isinstance(inputs, np.matrix):
             inputs = np.matrix(inputs.flatten()).transpose()
         self.out = np.array(sigmoid(self.w * inputs + self.b))
         return self.out
-    
+
     def train(self, dEdH, outputs, inputs):
-        if not isinstance(inputs, np.matrix):
+        if not isinstance(inputs, np.matrix): #If what is given in entry isn't a matrix (like coming from a MaxPollingLayer then make it a matrix)
             inputs = np.matrix(inputs.flatten()).transpose()
+        newgrad = self.backPropagateGradient(dEdH, inputs) #Please note that the error must be backpropagate before the weigths are ajusted
         self.delta_b_w(dEdH, outputs, inputs)
-        
-    def backPropagateGradient(self, dEdH, inputs = None) : #Return the gradient of the previous Layer : dEdI
-#        if inputs != None : #If this layer is used in a convolutional layer architecture, we parse the inputs because it's easier to code this this way
+        return newgrad
+
+    def backPropagateGradient(self, dEdH, inputs) : #Return the gradient of the previous Layer : dEdI
         previousLayerShape = np.shape(inputs)
-        if isinstance(previousLayerShape, int) : #If inputs is a vector, the previous layer is thus a FC
-            return self.w.transpose() * self.dEdb
-        elif len(previousLayerShape) > 1: #Which mean that the previous layer (k-1) is either a ConvLayer or a MaxPollingLayer
-            return np.array((self.w.transpose() * self.dEdb)).reshape(previousLayerShape)
+        if self.a_fun == 'sigmoid' :# then the derivative of sigmoid is inputs (1-inputs) and then very fast to cumpute and process
+            if previousLayerShape[1] == 1: #If inputs is a vector, the previous layer is thus a FC or an entry vector
+                return np.multiply(self.w.transpose() * dEdH, np.multiply(inputs, (1-inputs))) #There I made a mistake !!! I thougth
+                                                                                        #that dEdI = self.w.tranpose() * seld.dEdb but in fact hadamard product and
+                                                                                        #the matriciel product don't commute and its wrong.
+            else : #Which mean that the previous layer (k-1) is either a ConvLayer or a MaxPollingLayer
+                return np.array(np.multiply(self.w.transpose() * dEdH, np.multiply(inputs, (1-inputs)))).reshape(previousLayerShape)
+        else :
+            print('[-] Your activation function isn t defined yet.')
+            sys.exit()
 #    else :
 #           return self.w.transpose() * self.dEdb  #return dEdI
-        
+
 class ConvLayer: #Note that ReLU layer is included in ConvLayer
-    
+
     def __init__(self, input_shape, filter_shape, nb_filters, zero_padding = 0, stride = 1, lr = LR):
         #input_shape[0] -> Depth (1 si c'est une image)
         #input_shape[1] -> Channels (ex : number of pixel, rgb -> 3)
         #input_shape[2] -> Heigth
         #input_shape[3] -> Width
-        
-        self.input_shape = input_shape 
+
+        self.input_shape = input_shape
         self.in_depth, self.in_channel, self.in_heigth, self.in_width = self.input_shape
         self.filter_shape = filter_shape
         self.zero_padding = zero_padding
@@ -110,7 +121,7 @@ class ConvLayer: #Note that ReLU layer is included in ConvLayer
         self.stride = stride
         self.lr = lr
         self.out_channel_out = 1 #After a convolution only one channel
-        
+
         #Initialize weigths randomly
         self.w = np.random.rand(self.nb_filters, self.in_channel, self.filter_shape[0], self.filter_shape[1])
         #self.w[0] -> nb filter (depth)
@@ -118,13 +129,13 @@ class ConvLayer: #Note that ReLU layer is included in ConvLayer
         #self.w[2] -> heigth of inputs
         #self.w[3] -> width of inputs
         self.b = np.random.rand(self.nb_filters, 1)
-        
+
         #Formula from "Convolutional Neural network with Python" from Franck Milstein
         self.out_row_dim = int((self.in_heigth - self.filter_shape[0] + 2*self.zero_padding) / self.stride + 1) #Dimension of the row output
         self.out_cols_dim = int((self.in_width - self.filter_shape[1] + 2*self.zero_padding) / self.stride + 1) #Dimension of the cols output
         self.out = np.zeros((self.nb_filters *self.in_depth, 1, self.out_row_dim, self.out_cols_dim)) #We only have one channel after convolution, hence the "1"
-        
-        
+
+
     def process_convolution(self, inputs):
         #Prepare inputs with zero_padding
         self.inputsPadded = pad_inputs(inputs, self.zero_padding)
@@ -147,7 +158,7 @@ class ConvLayer: #Note that ReLU layer is included in ConvLayer
     def guess(self, inputs): #Easier to code the all process after
         self.process_convolution(inputs)
         return self.out
-   
+
     def train(self, dEdH, outputs, inputs): #We won't use input here but self.inputPadded
         #dEdH - > #Gradient of the cost with respect of the output, size depth*channels*heigth*width
         dw = np.zeros(np.shape(self.w))
@@ -170,7 +181,7 @@ class ConvLayer: #Note that ReLU layer is included in ConvLayer
                 outDepth += 1
         self.w -= self.lr * dw
         self.b -= self.lr * db
-  
+
     def backPropagateGradient(self, dEdH, inputs = None): #dEdH gradient at the next layer, dE/dH (at k+1)
         #Gradient of the cost with respect of the inputs
         dEdI = np.zeros(self.input_shape)
@@ -180,7 +191,7 @@ class ConvLayer: #Note that ReLU layer is included in ConvLayer
         for filt in range(self.nb_filters):
             for depth in range(d):
                 row = 0
-                cols = 0 
+                cols = 0
                 while row + self.filter_shape[0] <= h:
                     while cols + self.filter_shape[1] <= w :
                         dEdIPadded[depth, :, row:row+self.filter_shape[0], cols:cols+self.filter_shape[1]] += np.multiply(self.w[filt], np.multiply(self.dHdU[outDepth, :, row, cols], dEdH[outDepth, :, row, cols])) #+= car on additionne les erreurs de chaque filtre
@@ -194,9 +205,9 @@ class ConvLayer: #Note that ReLU layer is included in ConvLayer
                 dEdI[depth,cha] = dEdIPadded[depth,cha, self.zero_padding:self.zero_padding+self.in_heigth, self.zero_padding: self.zero_padding+self.in_width]
         return dEdI
 
-    
+
 class MaxPollingLayer():
-    
+
     def __init__(self, input_shape, filter_shape = (2,2), stride = None):
         if stride == None :
             stride = filter_shape
@@ -207,7 +218,7 @@ class MaxPollingLayer():
         self.input_shape= input_shape
         self.in_depth, self.in_channel, self.in_heigth, self.in_width = self.input_shape
         self.filter_shape = filter_shape
-        self.stride = stride 
+        self.stride = stride
         self.nb_filters = self.in_depth #Useful variable to make loops regardless of the type of Layer
         self.out_channel_out = self.in_channel #Useful variable to make loops regardless of the type
         #A COMPRENDRE !!
@@ -218,10 +229,10 @@ class MaxPollingLayer():
         self.out_cols_dim = int(self.in_width/self.filter_shape[1])
         self.out = np.zeros((self.in_depth, 1, self.out_row_dim, self.out_cols_dim)) #We only have one channel after convolution, hence the "1"
         self.max_index = np.zeros(input_shape) #Very inportant when propagating the error back
-        
+
     def process_pooling(self, inputs):
         #for every map feature
-        
+
         for mapp in range(0, self.in_depth):
             row = 0
             cols = 0
@@ -235,27 +246,27 @@ class MaxPollingLayer():
                     cols = cols + self.stride[1]
                 row = row + self.stride[0]
                 cols = 0
-         
-    
-    def guess(self, inputs): 
+
+
+    def guess(self, inputs):
         self.process_pooling(inputs)
         return self.out
-    
+
     def train(self, dEdH, outputs, inputs): #More simple to iterate loops in ConvNet Layers
         pass
-    
+
     def backPropagateGradient(self, dEdH, inputs = None): #Return gradient for the previous layer, inputs only if using FC out of the sign recognition issue
         #The back propagated gradient has to be for an convLayer
         #Formulas and demonstrations from https://medium.com/the-bioinformatics-press/only-numpy-understanding-back-propagation-for-max-pooling-layer-in-multi-layer-cnn-with-example-f7be891ee4b4
         dEdH = np.repeat(dEdH, self.filter_shape[0],axis = 2)
         dEdH = np.repeat(dEdH, self.filter_shape[1], axis = 3)
         return dEdH * self.max_index #Element wise multiplication
-    
+
 
 #Si CA MARCHE PAS REPRENDRE L'ANALYSE DU CODE A PARTIR DE LA
-                
+
 class ConvNet():
-    
+
     def __init__(self, layers = [], sign_recognition = False):
         self.nb_layers = len(layers)
         self.layers = []
@@ -271,8 +282,8 @@ class ConvNet():
         #################################################################################################################################
         """
         This is a draft I'd like to keep. Please do not pay attention to this part of the code.
-        
-        
+
+
         if sign_recognition == False :
             for lay in layers:
                 if lay[0] == 'ConvLayer' :
@@ -307,14 +318,14 @@ class ConvNet():
                            FCLayer(3584, 1024, 'sigmoid'),
                            FCLayer(1024, 43, 'sigmoid')]
             self.nb_layers = len(self.layers)
-               
-    
+
+
     def guess(self, inputs): # Inputs has to be an 4D array depth*channels*heigth*width (for an image, depth = 1)
             avancement = inputs
             for lay in self.layers:
                 avancement = lay.guess(avancement)
-            return avancement 
-    
+            return avancement
+
     def train(self,inputs, targets):
         avancement = []
         avancement.append(inputs)
@@ -322,13 +333,13 @@ class ConvNet():
         for lay in self.layers:
             avancement.append(lay.guess(avancement[i-1]))
             i += 1
-        errors = targets - avancement[-1]
+        dEdH =-(targets - avancement[-1])
         for i in range(len(avancement)-1,0,-1) :#En decroissant, 0 exclu
-            self.layers[i-1].train(errors, avancement[i], avancement[i-1])
-            if i != 1 : #Which mean, it's not the first layer
-                errors = self.layers[i-1].backPropagateGradient(errors, avancement[i-1])
-        return targets - avancement[-1]
-                
+            dEdH = self.layers[i-1].train(dEdH, avancement[i], avancement[i-1])
+        return targets - avancement[-1], avancement[-1]
+
+    #A structure isn't to difficult to compute using the train and guess function above then we try this structure by impleming its' train
+    #and guess function here under the labels guess_sign_recognition and train_sign_recognition
     def guess_sign_recognition(self, inputs, fromTrain = None):
         self.dictLay = {'firstConv' : self.layers[0],
                         'firstPolling' : self.layers[1],
@@ -369,7 +380,7 @@ class ConvNet():
             return avancement['secondFC']
         else :
             return avancement, entryFC
-        
+
     def train_sign_recognition(self, inputs, targets):
         avancement, entryFC = self.guess_sign_recognition(inputs, fromTrain = True)
         dEdH = targets - avancement['secondFC']
@@ -398,9 +409,7 @@ class ConvNet():
         #First Polling back propagate error
         err = dEdH_FC[:512].reshape(np.shape(self.dictLay['firstPollingToFC'].out))
         dEdH += self.dictLay['firstPollingToFC'].backPropagateGradient(err)
-        dEdH = self.dictLay['firstPolling'].backPropagateGradient(dEdH) 
+        dEdH = self.dictLay['firstPolling'].backPropagateGradient(dEdH)
         #First Conv training
         self.dictLay['firstConv'].train(dEdH, avancement['firstConv'], inputs)
         return err
-            
-                

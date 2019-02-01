@@ -80,7 +80,7 @@ def train(cnn):
             pickle.dump(cnn, sauvegarde_cnn)
             sauvegarde_cnn.close()
             plt.plot(i,error)
-    print('[+] End of thraining')
+    print('[+] End of training')
 
 train(cnn)
 
